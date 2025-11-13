@@ -51,23 +51,26 @@ export const executeTestsStep = createStep({
           const MAX_POLL_TIME_MS = 5 * 60 * 1000; // 5 minutes timeout
           const startTime = Date.now();
 
-          const pollForCompletion = async (): Promise<any> => {
-            const task = await client.tasks.getTask(taskResponse.id);
+            const pollForCompletion = async (): Promise<any> => {
+                const task = await client.tasks.getTask(taskResponse.id);
 
-            if (task.status === "started" || task.status === "paused") {
-              if (Date.now() - startTime > MAX_POLL_TIME_MS) {
-                throw new Error(
-                  `Task ${taskResponse.id} timed out after ${MAX_POLL_TIME_MS / 1000} seconds`
-                );
-              }
-              await new Promise((resolve) =>
-                setTimeout(resolve, POLL_INTERVAL_MS)
-              );
-              return pollForCompletion();
-            }
+                // Task is still in progress if it's not finished or stopped
+                const isInProgress = task.status !== "finished" && task.status !== "stopped";
 
-            return task;
-          };
+                if (isInProgress) {
+                    if (Date.now() - startTime > MAX_POLL_TIME_MS) {
+                        throw new Error(
+                            `Task ${taskResponse.id} timed out after ${MAX_POLL_TIME_MS / 1000} seconds`
+                        );
+                    }
+                    await new Promise((resolve) =>
+                        setTimeout(resolve, POLL_INTERVAL_MS)
+                    );
+                    return pollForCompletion();
+                }
+
+                return task;
+            };
 
           const task = await pollForCompletion();
 
